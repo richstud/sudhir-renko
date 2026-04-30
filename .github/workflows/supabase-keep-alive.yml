@@ -2,7 +2,7 @@ name: Supabase Keep Alive
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -10,15 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
       - name: Insert keep-alive row into Supabase
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          echo "Inserting keep-alive record..."
+          echo "Sending keep-alive to Supabase..."
 
           curl -f -X POST "$SUPABASE_URL/rest/v1/keep_alive_logs" \
             -H "apikey: $SUPABASE_ANON_KEY" \
@@ -26,16 +23,4 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Prefer: return=minimal" \
             -d '{"status":"alive"}' \
-            || echo "Insert failed"
-
-      - name: Update timestamp file
-        run: |
-          echo "Last ping at $(date -u +'%Y-%m-%d %H:%M:%S')" > last_ping.txt
-
-      - name: Commit and push changes
-        run: |
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
-          git add last_ping.txt
-          git commit -m "Update last ping timestamp" || echo "No changes"
-          git push
+            && echo "Keep-alive success" || echo "Keep-alive failed"
