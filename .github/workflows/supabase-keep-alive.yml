@@ -1,0 +1,30 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # Every 6 hours
+  workflow_dispatch:        # Allows manual run
+
+jobs:
+  keep_alive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send keep-alive ping to Supabase
+        env:
+          SUPABASE_API_URL: ${{ secrets.SUPABASE_API_URL }}
+        run: |
+          echo "Pinging Supabase..."
+          curl -f -X GET "$SUPABASE_API_URL/keep-alive" || echo "Ping failed"
+
+      - name: Update timestamp
+        run: |
+          echo "Last ping at $(date -u +'%Y-%m-%d %H:%M:%S')" > last_ping.txt
+
+      - name: Commit changes
+        run: |
+          git init
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add last_ping.txt
+          git commit -m "Update last ping timestamp" || echo "No changes"
