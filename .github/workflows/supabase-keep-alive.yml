@@ -2,29 +2,40 @@ name: Supabase Keep Alive
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # Every 6 hours
-  workflow_dispatch:        # Allows manual run
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   keep_alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Send keep-alive ping to Supabase
-        env:
-          SUPABASE_API_URL: ${{ secrets.SUPABASE_API_URL }}
-        run: |
-          echo "Pinging Supabase..."
-          curl -f -X GET "$SUPABASE_API_URL/keep-alive" || echo "Ping failed"
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - name: Update timestamp
+      - name: Insert keep-alive row into Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Inserting keep-alive record..."
+
+          curl -f -X POST "$SUPABASE_URL/rest/v1/keep_alive_logs" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d '{"status":"alive"}' \
+            || echo "Insert failed"
+
+      - name: Update timestamp file
         run: |
           echo "Last ping at $(date -u +'%Y-%m-%d %H:%M:%S')" > last_ping.txt
 
-      - name: Commit changes
+      - name: Commit and push changes
         run: |
-          git init
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git add last_ping.txt
           git commit -m "Update last ping timestamp" || echo "No changes"
+          git push
